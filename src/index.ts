@@ -21,7 +21,7 @@ const frontendOrigins = (process.env.FRONTEND_URL ?? "http://localhost:5173")
 app.use(
   "/*",
   cors({
-    origin: (origin) => {
+    origin: (origin: string | undefined) => {
       if (!origin) return frontendOrigins[0];
       if (frontendOrigins.includes(origin)) return origin;
       if (process.env.NODE_ENV !== "production" && origin.startsWith("http://localhost:")) {
