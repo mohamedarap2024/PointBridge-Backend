@@ -3,5 +3,7 @@ dist
 .env
 .env.*
 !.env.example
+render.env
+vercel.env
 *.log
 .DS_Store

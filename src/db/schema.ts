@@ -1,5 +1,6 @@
 import {
   boolean,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -32,6 +33,7 @@ export const testimonials = pgTable("testimonials", {
   name: varchar("name", { length: 120 }).notNull(),
   role: varchar("role", { length: 160 }).notNull(),
   quote: text("quote").notNull(),
+  image: text("image"),
   approved: boolean("approved").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -45,7 +47,29 @@ export const siteImages = pgTable("site_images", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const teamMembers = pgTable("team_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 120 }).notNull(),
+  role: varchar("role", { length: 160 }).notNull(),
+  bio: text("bio").notNull(),
+  image: text("image").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const clientLogos = pgTable("client_logos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 120 }).notNull(),
+  logo: text("logo"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type Testimonial = typeof testimonials.$inferSelect;
 export type SiteImage = typeof siteImages.$inferSelect;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type ClientLogo = typeof clientLogos.$inferSelect;

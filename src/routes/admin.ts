@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
-import { contactMessages, siteImages, testimonials, users } from "../db/schema";
+import { clientLogos, contactMessages, siteImages, teamMembers, testimonials, users } from "../db/schema";
 import {
   hashPassword,
   requireAdmin,
@@ -13,8 +13,15 @@ export const adminRoutes = new Hono<{ Variables: AppVariables }>();
 
 adminRoutes.use("*", requireAdmin);
 
+const imageUrlSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(2000)
+  .refine((value) => value.startsWith("/") || value.startsWith("http"), "Enter a valid URL or path");
+
 adminRoutes.get("/stats", async (c) => {
-  const [messages, newMessages, allTestimonials, pendingTestimonials, images, allUsers] =
+  const [messages, newMessages, allTestimonials, pendingTestimonials, images, allUsers, team, clients] =
     await Promise.all([
       db.select().from(contactMessages),
       db.select().from(contactMessages).where(eq(contactMessages.status, "new")),
@@ -22,6 +29,8 @@ adminRoutes.get("/stats", async (c) => {
       db.select().from(testimonials).where(eq(testimonials.approved, false)),
       db.select().from(siteImages),
       db.select().from(users),
+      db.select().from(teamMembers),
+      db.select().from(clientLogos),
     ]);
 
   return c.json({
@@ -29,6 +38,8 @@ adminRoutes.get("/stats", async (c) => {
     testimonials: { total: allTestimonials.length, pending: pendingTestimonials.length },
     images: { total: images.length },
     users: { total: allUsers.length },
+    team: { total: team.length },
+    clients: { total: clients.length },
   });
 });
 
@@ -75,6 +86,7 @@ const testimonialSchema = z.object({
   name: z.string().trim().min(1).max(120),
   role: z.string().trim().min(1).max(160),
   quote: z.string().trim().min(10).max(1000),
+  image: imageUrlSchema.optional().nullable(),
   approved: z.boolean().optional(),
 });
 
@@ -121,13 +133,6 @@ adminRoutes.get("/images", async (c) => {
   return c.json({ items: rows });
 });
 
-const imageUrlSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(2000)
-  .refine((value) => value.startsWith("/") || value.startsWith("http"), "Enter a valid URL or path");
-
 const imageSchema = z.object({
   key: z.string().trim().min(1).max(120),
   label: z.string().trim().min(1).max(200),
@@ -166,6 +171,106 @@ adminRoutes.delete("/images/:id", async (c) => {
     .returning();
 
   if (!deleted) return c.json({ error: "Image not found" }, 404);
+  return c.json({ ok: true });
+});
+
+const teamMemberSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  role: z.string().trim().min(1).max(160),
+  bio: z.string().trim().min(1).max(1000),
+  image: imageUrlSchema,
+  sortOrder: z.number().int().min(0).max(999).optional(),
+});
+
+adminRoutes.get("/team", async (c) => {
+  const rows = await db.select().from(teamMembers).orderBy(asc(teamMembers.sortOrder), asc(teamMembers.name));
+  return c.json({ items: rows });
+});
+
+adminRoutes.post("/team", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = teamMemberSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid data" }, 400);
+
+  const [item] = await db
+    .insert(teamMembers)
+    .values({ ...parsed.data, sortOrder: parsed.data.sortOrder ?? 0 })
+    .returning();
+
+  return c.json({ item }, 201);
+});
+
+adminRoutes.patch("/team/:id", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = teamMemberSchema.partial().safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid data" }, 400);
+
+  const [item] = await db
+    .update(teamMembers)
+    .set({ ...parsed.data, updatedAt: new Date() })
+    .where(eq(teamMembers.id, c.req.param("id")))
+    .returning();
+
+  if (!item) return c.json({ error: "Team member not found" }, 404);
+  return c.json({ item });
+});
+
+adminRoutes.delete("/team/:id", async (c) => {
+  const [deleted] = await db
+    .delete(teamMembers)
+    .where(eq(teamMembers.id, c.req.param("id")))
+    .returning();
+
+  if (!deleted) return c.json({ error: "Team member not found" }, 404);
+  return c.json({ ok: true });
+});
+
+const clientLogoSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  logo: imageUrlSchema.optional().nullable(),
+  sortOrder: z.number().int().min(0).max(999).optional(),
+});
+
+adminRoutes.get("/clients", async (c) => {
+  const rows = await db.select().from(clientLogos).orderBy(asc(clientLogos.sortOrder), asc(clientLogos.name));
+  return c.json({ items: rows });
+});
+
+adminRoutes.post("/clients", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = clientLogoSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid data" }, 400);
+
+  const [item] = await db
+    .insert(clientLogos)
+    .values({ ...parsed.data, sortOrder: parsed.data.sortOrder ?? 0 })
+    .returning();
+
+  return c.json({ item }, 201);
+});
+
+adminRoutes.patch("/clients/:id", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = clientLogoSchema.partial().safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid data" }, 400);
+
+  const [item] = await db
+    .update(clientLogos)
+    .set({ ...parsed.data, updatedAt: new Date() })
+    .where(eq(clientLogos.id, c.req.param("id")))
+    .returning();
+
+  if (!item) return c.json({ error: "Client not found" }, 404);
+  return c.json({ item });
+});
+
+adminRoutes.delete("/clients/:id", async (c) => {
+  const [deleted] = await db
+    .delete(clientLogos)
+    .where(eq(clientLogos.id, c.req.param("id")))
+    .returning();
+
+  if (!deleted) return c.json({ error: "Client not found" }, 404);
   return c.json({ ok: true });
 });
 

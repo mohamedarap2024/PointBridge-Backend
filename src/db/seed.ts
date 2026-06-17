@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "./index";
-import { siteImages, testimonials, users } from "./schema";
+import { siteImages, teamMembers, testimonials, users, clientLogos } from "./schema";
 import { hashPassword } from "../lib/auth";
 import { count, eq } from "drizzle-orm";
 
@@ -32,17 +32,62 @@ const defaultTestimonials = [
     name: "Dr. Amina Yusuf",
     role: "Director, Ministry of Planning",
     quote: "PointBridge delivered with discipline and integrity in one of our most complex reform programs.",
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80",
   },
   {
     name: "Mark Johansson",
     role: "Country Director, INGO",
     quote: "Their M&E framework changed how we report results to donors — clear, defensible, on time.",
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80",
   },
   {
     name: "Hodan Ahmed",
     role: "Programme Manager, UN Agency",
     quote: "Rigorous, ethical and locally grounded. Exactly what fragile contexts need.",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80",
   },
+];
+
+const defaultTeamMembers = [
+  {
+    name: "Keynan A. Mohamed",
+    role: "Managing Partner",
+    bio: "20+ years across governance, M&E and institutional reform in East Africa.",
+    image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&q=80",
+    sortOrder: 0,
+  },
+  {
+    name: "Dr. Fatuma Hassan",
+    role: "Director, Research & Analytics",
+    bio: "Mixed-methods researcher specializing in fragile and humanitarian contexts.",
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80",
+    sortOrder: 1,
+  },
+  {
+    name: "Ahmed Warsame",
+    role: "Head of Audit & Risk",
+    bio: "CPA, CIA. Former Big Four assurance leader with deep NGO and public sector experience.",
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80",
+    sortOrder: 2,
+  },
+  {
+    name: "Layla Ibrahim",
+    role: "Director, Human Capital",
+    bio: "HR systems architect for ministries, UN agencies and international NGOs.",
+    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&q=80",
+    sortOrder: 3,
+  },
+];
+
+const defaultClientLogos = [
+  { name: "UN Agencies", sortOrder: 0 },
+  { name: "International NGOs", sortOrder: 1 },
+  { name: "Bilateral Donors", sortOrder: 2 },
+  { name: "Foundations", sortOrder: 3 },
+  { name: "World Bank", sortOrder: 4 },
+  { name: "EU Delegation", sortOrder: 5 },
+  { name: "USAID", sortOrder: 6 },
+  { name: "African Union", sortOrder: 7 },
 ];
 
 export async function runMigrations() {
@@ -76,9 +121,14 @@ export async function runMigrations() {
       name VARCHAR(120) NOT NULL,
       role VARCHAR(160) NOT NULL,
       quote TEXT NOT NULL,
+      image TEXT,
       approved BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+
+  await db.execute(sql`
+    ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS image TEXT
   `);
 
   await db.execute(sql`
@@ -88,6 +138,30 @@ export async function runMigrations() {
       label VARCHAR(200) NOT NULL,
       url TEXT NOT NULL,
       category VARCHAR(40) NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS team_members (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(120) NOT NULL,
+      role VARCHAR(160) NOT NULL,
+      bio TEXT NOT NULL,
+      image TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS client_logos (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(120) NOT NULL,
+      logo TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
@@ -121,5 +195,15 @@ export async function seedDatabase() {
   const [testimonialCount] = await db.select({ value: count() }).from(testimonials);
   if ((testimonialCount?.value ?? 0) === 0) {
     await db.insert(testimonials).values(defaultTestimonials);
+  }
+
+  const [teamCount] = await db.select({ value: count() }).from(teamMembers);
+  if ((teamCount?.value ?? 0) === 0) {
+    await db.insert(teamMembers).values(defaultTeamMembers);
+  }
+
+  const [clientCount] = await db.select({ value: count() }).from(clientLogos);
+  if ((clientCount?.value ?? 0) === 0) {
+    await db.insert(clientLogos).values(defaultClientLogos);
   }
 }

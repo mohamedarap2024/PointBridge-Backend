@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
-import { contactMessages, siteImages, testimonials } from "../db/schema";
+import { clientLogos, contactMessages, siteImages, teamMembers, testimonials } from "../db/schema";
 
 export const contentRoutes = new Hono();
 
@@ -19,6 +19,16 @@ contentRoutes.get("/testimonials", async (c) => {
     .where(eq(testimonials.approved, true))
     .orderBy(desc(testimonials.createdAt));
 
+  return c.json({ items: rows });
+});
+
+contentRoutes.get("/team", async (c) => {
+  const rows = await db.select().from(teamMembers).orderBy(asc(teamMembers.sortOrder), asc(teamMembers.name));
+  return c.json({ items: rows });
+});
+
+contentRoutes.get("/clients", async (c) => {
+  const rows = await db.select().from(clientLogos).orderBy(asc(clientLogos.sortOrder), asc(clientLogos.name));
   return c.json({ items: rows });
 });
 
